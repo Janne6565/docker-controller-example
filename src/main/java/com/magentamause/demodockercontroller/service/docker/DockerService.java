@@ -16,6 +16,7 @@ public interface DockerService {
                            List<VolumeMount> volumeMounts, ResourceLimits resourceLimits);
     void startContainer(String containerId);
     void stopContainer(String containerId);
+    void deleteContainer(String containerId);
     InspectContainerResponse inspectContainer(String containerId);
     List<Container> listAllContainers();
     boolean containerExists(String containerId);

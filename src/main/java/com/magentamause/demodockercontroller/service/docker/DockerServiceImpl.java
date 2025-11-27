@@ -5,12 +5,14 @@ import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.NotFoundException;
+import com.github.dockerjava.api.exception.NotModifiedException;
 import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.command.PullImageResultCallback;
 import com.magentamause.demodockercontroller.model.ResourceLimits;
 import com.magentamause.demodockercontroller.model.VolumeMount;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -23,7 +25,7 @@ public class DockerServiceImpl implements DockerService {
 
     private final DockerClient dockerClient;
 
-    public DockerServiceImpl(DockerClient dockerClient) {
+    public DockerServiceImpl(@Qualifier("dockerClient") DockerClient dockerClient) {
         this.dockerClient = dockerClient;
     }
 
@@ -163,13 +165,42 @@ public class DockerServiceImpl implements DockerService {
     }
 
     @Override
+    public void deleteContainer(String containerId) {
+        log.info("Deleting container with ID: {}", containerId);
+        try {
+            // First, stop the container. If it's already stopped, this will do nothing.
+            // A NotFoundException here means it's already gone, which is fine.
+            try {
+                dockerClient.stopContainerCmd(containerId).exec();
+                log.info("Container {} stopped before deletion.", containerId);
+            } catch (NotFoundException e) {
+                log.warn("Container {} not found for stopping before deletion. It may have already been removed.", containerId);
+                // If the container doesn't exist, we don't need to do anything else.
+                return;
+            } catch (NotModifiedException e) {
+                log.info("Container {} was already stopped.", containerId);
+                // If container is already stopped, we can proceed to delete it.
+            }
+
+            // Now, remove the container
+            dockerClient.removeContainerCmd(containerId).exec();
+            log.info("Container {} deleted successfully.", containerId);
+        } catch (NotFoundException e) {
+            log.warn("Container {} not found for deletion. It was likely already removed.", containerId);
+        } catch (Exception e) {
+            log.error("Failed to delete container {}: {}", containerId, e.getMessage());
+            throw new RuntimeException("Failed to delete container", e);
+        }
+    }
+
+    @Override
     public InspectContainerResponse inspectContainer(String containerId) {
         log.debug("Inspecting container with ID: {}", containerId);
         try {
             return dockerClient.inspectContainerCmd(containerId).exec();
         } catch (NotFoundException e) {
             log.warn("Container {} not found during inspection: {}", containerId, e.getMessage());
-            return null; // Or throw a specific exception if preferred
+            return null;
         } catch (Exception e) {
             log.error("Failed to inspect container {}: {}", containerId, e.getMessage());
             throw new RuntimeException("Failed to inspect container", e);

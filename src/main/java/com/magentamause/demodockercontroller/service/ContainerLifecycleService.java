@@ -80,6 +80,21 @@ public class ContainerLifecycleService {
         return containerInstanceRepository.save(instance);
     }
 
+    @Transactional
+    public void deleteContainer(UUID instanceId) {
+        ContainerInstance instance = containerInstanceRepository.findById(instanceId)
+                .orElseThrow(() -> new RuntimeException("Container instance not found"));
+
+        if (instance.getDockerContainerId() != null) {
+            dockerService.deleteContainer(instance.getDockerContainerId());
+        } else {
+            log.warn("Container instance {} has no Docker container ID. Deleting from repository only.", instanceId);
+        }
+
+        containerInstanceRepository.delete(instance);
+        log.info("Deleted container instance {}.", instanceId);
+    }
+
     @Transactional(readOnly = true)
     public Optional<ContainerInstance> getContainerInstance(UUID instanceId) {
         return containerInstanceRepository.findById(instanceId);

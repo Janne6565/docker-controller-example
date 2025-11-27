@@ -82,6 +82,16 @@ public class ContainerController {
         return ResponseEntity.ok(instanceMapper.toResponse(instance));
     }
 
+    @DeleteMapping("/containers/{containerId}")
+    public ResponseEntity<Void> deleteContainer(@PathVariable UUID containerId) {
+        try {
+            lifecycleService.deleteContainer(containerId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete container", e);
+        }
+    }
+
     @GetMapping("/containers")
     public ResponseEntity<List<ContainerInstanceResponse>> getAllContainerInstances() {
         List<ContainerInstance> instances = lifecycleService.getAllContainerInstances();
